@@ -1,20 +1,18 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 'use client';
 
-import React, { useContext, useEffect, useRef } from 'react';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-
-import { classNames } from 'primereact/utils';
+import { useRouter } from 'next/navigation';
 import { useEventListener, useMountEffect, useUnmountEffect } from 'primereact/hooks';
-import { PrimeReactContext } from 'primereact/api';
-
+import React, { useContext, useEffect, useRef } from 'react';
+import { classNames } from 'primereact/utils';
 import AppFooter from './AppFooter';
 import AppSidebar from './AppSidebar';
 import AppTopbar from './AppTopbar';
 import AppConfig from './AppConfig';
-
 import { LayoutContext } from './context/layoutcontext';
+import { PrimeReactContext } from 'primereact/api';
 import { ChildContainerProps, LayoutState, AppTopbarRef } from '@/types';
+import { usePathname, useSearchParams } from 'next/navigation';
 import WithAuth from '../layout/context/WithAuth';
 
 const Layout = ({ children }: ChildContainerProps) => {

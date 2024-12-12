@@ -1,10 +1,9 @@
 /* eslint-disable @next/next/no-img-element */
 'use client';
-import React, { useContext, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-
+import React, { useContext, useEffect } from 'react';
 import { LayoutContext } from '../../layout/context/layoutcontext';
-
+import { getCookie } from 'cookies-next';
 
 const Dashboard = () => {
     const { layoutConfig } = useContext(LayoutContext);
@@ -12,14 +11,12 @@ const Dashboard = () => {
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
-            const token = localStorage.getItem('token');
+            const token = getCookie('token');
             if (!token) {
-                router.replace('/auth/login');
+                router.replace('/auth/login'); 
             }
         }
     }, [router]);
-
-
 
     return (
         <div className="grid">

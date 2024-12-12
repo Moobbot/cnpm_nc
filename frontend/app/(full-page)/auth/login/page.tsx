@@ -1,22 +1,23 @@
 'use client';
-import React, { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-
-import { Avatar } from 'primereact/avatar';
-import { Button } from 'primereact/button';
+import React, { useState, useRef } from 'react';
 import { Checkbox } from 'primereact/checkbox';
-import { InputText } from 'primereact/inputtext';
+import { Button } from 'primereact/button';
 import { Password } from 'primereact/password';
-import { Toast } from 'primereact/toast';
+import { InputText } from 'primereact/inputtext';
 import { classNames } from 'primereact/utils';
-
 import { useUser } from '../../../../layout/context/usercontext';
+import { Avatar } from 'primereact/avatar';
+import { Toast } from 'primereact/toast';
+import { getCookie, setCookie } from 'cookies-next';
+import { get } from 'http';
+
 
 const LoginPage = () => {
-    const [username, setUsername] = useState('');  
-    const [password, setPassword] = useState('');  
+    const [username, setUsername] = useState('');
+    const [password, setPassword] = useState('');
     const [checked, setChecked] = useState(false);
-    const { setUser } = useUser(); 
+    const { setUser } = useUser();
     const router = useRouter();
     const toast = useRef<Toast>(null);
     const containerClassName = classNames('surface-ground flex align-items-center justify-content-center min-h-screen min-w-screen overflow-hidden');
@@ -26,50 +27,47 @@ const LoginPage = () => {
             const response = await fetch('http://localhost:8080/api/auth/login', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    username: username,
-                    password: password
+                    username,
+                    password
                 })
             });
-    
+
             if (response.ok) {
                 const data = await response.json();
-/*              localStorage.setItem('id', data.user._id);
-                localStorage.setItem('firstname', data.user.firstname);
-                localStorage.setItem('lastname', data.user.lastname);
-                localStorage.setItem('roles', JSON.stringify(data.user.roles));
-                localStorage.setItem('createdBy', data.user.createdBy);
-                localStorage.setItem('updatedBy', data.user.updatedBy);
-                localStorage.setItem('status', data.user.status);
-                localStorage.setItem('createdAt', data.user.createdAt);
-                localStorage.setItem('updatedAt', data.user.updatedAt); */
-                localStorage.setItem('token', data.accessToken); 
-                setUser(data.user); 
-                router.push('/'); 
+
+                // Lưu thông tin vào cookie
+                console.log(data.data.permissions);
+                setCookie('token', data.accessToken, { maxAge: 60 * 60 * 24 });
+                // localStorage.setItem('token', data.accessToken);
+                setCookie('permissions', JSON.stringify(data.data.permissions), { maxAge: 60 * 60 * 24 });
+                setCookie('grantAll', data.data.grantAll, { maxAge: 60 * 60 * 24 });
+
+                setUser(data.user); // Cập nhật context
+                router.push('/'); // Điều hướng về trang chủ
             } else {
                 const errorData = await response.json();
-                console.error('Login failed:', errorData);
+                let detailMessage = 'Đăng nhập thất bại';
                 if (errorData.message === 'User does not exist') {
-                    toast.current?.show({ severity: 'error', summary: 'Lỗi', detail: 'Người dùng không tồn tại' });
+                    detailMessage = 'Người dùng không tồn tại';
                 } else if (errorData.message === 'Invalid credentials') {
-                    toast.current?.show({ severity: 'error', summary: 'Lỗi', detail: 'Tên đăng nhập hoặc mật khẩu không chính xác' });
-                } else {
-                    toast.current?.show({ severity: 'error', summary: 'Lỗi', detail: 'Đăng nhập thất bại' });
+                    detailMessage = 'Tên đăng nhập hoặc mật khẩu không chính xác';
                 }
+                toast.current?.show({ severity: 'error', summary: 'Lỗi', detail: detailMessage });
             }
         } catch (error) {
             console.error('Login error:', error);
-            router.push("/pages/error");
+            toast.current?.show({ severity: 'error', summary: 'Lỗi', detail: 'Đã xảy ra lỗi, vui lòng thử lại sau' });
         }
     };
 
     return (
         <div className={containerClassName}>
-            <Toast ref={toast}  />
+            <Toast ref={toast} />
             <div className="flex flex-column align-items-center justify-content-center">
-                <img src={`/layout/images/logo.svg`} alt="logo" className="mb-5 w-6rem flex-shrink-0" />
+                <img src={`/layout/images/logo (1).svg`} alt="logo" className="mb-5 w-6rem flex-shrink-0" />
                 <div
                     style={{
                         borderRadius: '56px',
@@ -79,11 +77,7 @@ const LoginPage = () => {
                 >
                     <div className="w-full surface-card py-8 px-5 sm:px-8" style={{ borderRadius: '53px' }}>
                         <div className="text-center mb-5">
-                        <Avatar 
-                            icon="pi pi-user" 
-                            className="mb-3" 
-                            style={{ height: '80px', width: '80px', borderRadius: '50%' }} 
-                        />
+                            <Avatar icon="pi pi-user" className="mb-3" style={{ height: '80px', width: '80px', borderRadius: '50%' }} />
                             <div className="text-900 text-3xl font-medium mb-3">Welcome!</div>
                             <span className="text-600 font-medium">Sign in to continue</span>
                         </div>
@@ -92,28 +86,12 @@ const LoginPage = () => {
                             <label htmlFor="username1" className="block text-900 text-xl font-medium mb-2">
                                 Username
                             </label>
-                            <InputText 
-                                id="username1" 
-                                type="text" 
-                                placeholder="Username" 
-                                className="w-full md:w-30rem mb-5" 
-                                style={{ padding: '1rem' }} 
-                                value={username} 
-                                onChange={(e) => setUsername(e.target.value)} 
-                            />
+                            <InputText id="username1" type="text" placeholder="Username" className="w-full md:w-30rem mb-5" style={{ padding: '1rem' }} value={username} onChange={(e) => setUsername(e.target.value)} />
 
                             <label htmlFor="password1" className="block text-900 font-medium text-xl mb-2">
                                 Password
                             </label>
-                            <Password 
-                                inputId="password1" 
-                                value={password} 
-                                onChange={(e) => setPassword(e.target.value)} 
-                                placeholder="Password" 
-                                toggleMask 
-                                className="w-full mb-5" 
-                                inputClassName="w-full p-3 md:w-30rem"
-                            />
+                            <Password inputId="password1" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" toggleMask className="w-full mb-5" inputClassName="w-full p-3 md:w-30rem" />
 
                             <div className="flex align-items-center justify-content-between mb-5 gap-5">
                                 <div className="flex align-items-center">

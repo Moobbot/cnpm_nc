@@ -8,7 +8,7 @@ type Props = {
 };
 
 const NewButton = ({ permissions, onClick, label }: Props) => {
-    permissions.includes(Permissions.ADD_PERMISSION) && <Button label={label} icon="pi pi-plus" className="p-button-success mr-2" onClick={onClick} />;
+    return permissions.includes(Permissions.ADD_PERMISSION) && <Button label={label} icon="pi pi-plus" className="p-button-success mr-2" onClick={onClick} />;
 };
 
 export default NewButton;

@@ -9,7 +9,7 @@ type Props = {
 };
 
 const DeleteButton = ({ permissions, onclick, selected, label }: Props) => {
-    permissions.includes(Permissions.DELETE_PERMISSION) && <Button label={label} icon="pi pi-trash" className="p-button-danger" onClick={onclick} disabled={!selected || !selected.length} />;
+    return permissions.includes(Permissions.DELETE_PERMISSION) && <Button label={label} icon="pi pi-trash" className="p-button-danger" onClick={onclick} disabled={!selected || !selected.length} />;
 };
 
 export default DeleteButton;

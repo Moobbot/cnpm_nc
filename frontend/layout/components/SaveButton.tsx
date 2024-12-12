@@ -1,12 +1,14 @@
 import { Button } from 'primereact/button';
+import { Permissions } from '@/enums/permissions.enums';
 
 type Props = {
+    permissions: string[];
     label: string;
     onClick: () => void;
 };
 
-const CancelButton = ({ label, onClick }: Props) => {
-    return <Button label={label} icon="pi pi-check" className="p-button-text" onClick={onClick} />;
+const SaveButton = ({ permissions, label, onClick }: Props) => {
+    return permissions.includes(Permissions.EDIT_PERMISSION) && <Button label={label}  style={{ width: '200px' }} onClick={onClick} />;
 };
 
-export default CancelButton;
+export default SaveButton;

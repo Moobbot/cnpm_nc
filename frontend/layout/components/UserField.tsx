@@ -4,16 +4,16 @@ import React from 'react';
 import { InputText } from 'primereact/inputtext';
 import { MultiSelect } from 'primereact/multiselect';
 import { classNames } from 'primereact/utils';
-import { Base } from '@/types';
+import { Demo } from '@/types';
 import { Dropdown } from 'primereact/dropdown';
 
 type Props = {
-    user: Base.User;
-    profile: Base.UserProfile;
+    user: Demo.User;
+    profile: Demo.UserProfile;
     onInputChange: (e: any, name: string) => void;
     submitted: boolean;
     roleOptions: any[];
-    onMultiSelectChange: (e: { value: Base.Role[] }, name: string) => void;
+    onMultiSelectChange: (e: { value: Demo.Role[] }, name: string) => void;
 };
 
 export const NameField = ({ user, onInputChange, submitted }: Props) => (

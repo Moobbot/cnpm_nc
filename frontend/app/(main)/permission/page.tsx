@@ -1,20 +1,16 @@
 'use client';
 import React, { useEffect, useState } from 'react';
-
 import { Button } from 'primereact/button';
 import { Checkbox } from 'primereact/checkbox';
 import { Toast } from 'primereact/toast';
 import { BreadCrumb } from 'primereact/breadcrumb';
 import { confirmDialog, ConfirmDialog } from 'primereact/confirmdialog';
-import { Dialog } from 'primereact/dialog';
-import { InputText } from 'primereact/inputtext';
-
 import RoleService from '../../api/RoleService';
 import PermissionService from '../../api/PermissionService';
-
-import '../../../modules/lis_admin/styles/RolePermissionTable.scss';
-
+import '../../../modules/lis_administration/styles/RolePermissionTable.scss';
 import { Base } from '@/types';
+import { Dialog } from 'primereact/dialog';
+import { InputText } from 'primereact/inputtext';
 
 const RolePermissionTable = () => {
     const [roles, setRoles] = useState<Base.Role[]>([]);

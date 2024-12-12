@@ -7,8 +7,8 @@ interface SimpleLayoutProps {
 }
 
 export const metadata: Metadata = {
-    title: 'TEAM7 LIS',
-    description: 'TEAM7 cooperated with AIRC to develop this application'
+    title: 'AIRC LIS',
+    description: ''
 };
 
 export default function SimpleLayout({ children }: SimpleLayoutProps) {

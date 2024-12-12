@@ -1,6 +1,4 @@
 'use client';
-import React, { useEffect, useRef, useState } from 'react';
-
 import { Button } from 'primereact/button';
 import { Column } from 'primereact/column';
 import { DataTable, DataTableFilterMeta } from 'primereact/datatable';
@@ -8,18 +6,23 @@ import { Dialog } from 'primereact/dialog';
 import { InputText } from 'primereact/inputtext';
 import { Toast } from 'primereact/toast';
 import { Toolbar } from 'primereact/toolbar';
+import { classNames } from 'primereact/utils';
+import React, { useEffect, useRef, useState } from 'react';
+import UserService from '../../api/UserService';
+import { Base } from '@/types';
+import RoleService from '../../api/RoleService';
 import { MultiSelect } from 'primereact/multiselect';
 import { BreadCrumb } from 'primereact/breadcrumb';
 import { Badge } from 'primereact/badge';
-import { classNames } from 'primereact/utils';
-import { FilterMatchMode, FilterOperator } from 'primereact/api';
-
 import { format, isValid } from 'date-fns';
-
-import UserService from '../../api/UserService';
-import RoleService from '../../api/RoleService';
-
-import { Base } from '@/types';
+import { FilterMatchMode, FilterOperator } from 'primereact/api';
+import ExportButton from '@/layout/components/ExportButton';
+import CancelButton from '@/layout/components/CancelButton';
+import DeleteButton from '@/layout/components/DeleteButton';
+import NewButton from '@/layout/components/NewButton';
+import SaveButton from '@/layout/components/SaveButton';
+import { Permissions } from '@/enums/permissions.enums';
+import RBAC from '@/app/api/RBAC';
 
 const Crud = () => {
     let emptyUser: Base.User = {
@@ -32,7 +35,7 @@ const Crud = () => {
         updatedBy: null,
         createdAt: '',
         updatedAt: '',
-        status: true,
+        status: true
     };
 
     const [users, setUsers] = useState<Base.User[] | null>(null);
@@ -44,17 +47,18 @@ const Crud = () => {
     const [selectedUsers, setSelectedUsers] = useState<Base.User[] | null>(null);
     const [submitted, setSubmitted] = useState(false);
     const [globalFilter, setGlobalFilter] = useState<string | null>(null);
-    const [totalRecords, setTotalRecords] = useState(0);
-    const [rows, setRows] = useState(10);
+    const [totalRecords, setTotalRecords] = useState(0); 
+    const [rows, setRows] = useState(10); 
     const [page, setPage] = useState(1);
-    const [filters1, setFilters1] = useState<DataTableFilterMeta>({});
+    const [filters1, setFilters1] = useState<DataTableFilterMeta>({}); 
     const toast = useRef<Toast>(null);
     const dt = useRef<DataTable<any>>(null);
     const userService = new UserService();
     const roleService = new RoleService();
     const breadcrumbHome = { icon: 'pi pi-home', to: '/' };
-    const breadcrumbItems = [{ label: 'Quản lý người dùng' },];
+    const breadcrumbItems = [{ label: 'Quản lý người dùng' }];
 
+    let permissions = RBAC();
     useEffect(() => {
         const fetchUsers = async (page: number, rows: number) => {
             try {
@@ -69,7 +73,7 @@ const Crud = () => {
             try {
                 const response = await roleService.getRoles(1, 30);
                 const roleOptions = response.data
-                    .filter((role: any) => role.status === true)
+                    .filter((role: any) => role.status === true) 
                     .map((role: any) => ({
                         label: role.name,
                         value: { _id: role._id, name: role.name }
@@ -105,7 +109,7 @@ const Crud = () => {
 
     const updateUser = async () => {
         setSubmitted(true);
-
+    
         if (user.username.trim()) {
             try {
                 const updatedUser = await userService.updateUser(user._id, {
@@ -249,7 +253,7 @@ const Crud = () => {
         (_user as any)[name] = val;
 
         setUser(_user);
-    };
+    }; 
 
     const initFilters1 = () => {
         setFilters1({
@@ -279,8 +283,8 @@ const Crud = () => {
     const leftToolbarTemplate = () => {
         return (
             <React.Fragment>
-                <Button label="New" icon="pi pi-plus" rounded severity="success" onClick={openNew} />
-                <Button label="Delete" icon="pi pi-trash" rounded severity="warning" onClick={confirmDeleteSelected} disabled={!selectedUsers || !selectedUsers.length} />
+                <NewButton permissions={permissions} onClick={openNew} label="New" />
+                <DeleteButton permissions={permissions} onclick={confirmDeleteSelected} selected={selectedUsers || []} label="Delete" />
             </React.Fragment>
         );
     };
@@ -333,12 +337,16 @@ const Crud = () => {
         </div>
     );
 
-    const statusBodyTemplate = (rowData: Base.User) => {
+/*    const statusBodyTemplate = (rowData: Base.User) => {
         return (
             <span className={`product-badge status-${rowData.status === true ? 'instock' : 'outofstock'}`}>
                 {rowData.status === true ? 'Active' : 'Deactivated'}
             </span>
         );
+    }; */
+    
+    const statusBodyTemplate = (rowData: Base.User) => {
+        return <span className={`product-badge status-${rowData.status === true ? 'instock' : 'outofstock'}`}>{rowData.status === true ? 'Active' : 'Deactivated'}</span>;
     };
 
     const rolesBodyTemplate = (rowData: Base.User) => {
@@ -370,7 +378,7 @@ const Crud = () => {
             </div>
         );
     };
-
+    
     const CreateByBodyTemplate = (rowData: Base.User) => {
         return (
             <div>
@@ -427,7 +435,7 @@ const Crud = () => {
                         header={header}
                         responsiveLayout="scroll"
                         removableSort
-                    // onPage={onPage} 
+                        // onPage={onPage} 
                     >
                         <Column selectionMode="multiple" headerStyle={{ width: '3rem' }}></Column>
                         <Column field="_id" header="ID" filter sortable style={{ minWidth: '12rem' }}></Column>
@@ -435,7 +443,7 @@ const Crud = () => {
                         <Column field="name" header="Name" filter sortable style={{ minWidth: '12rem' }}></Column>
                         <Column field="createdBy" header="Created By" sortable body={CreateByBodyTemplate} style={{ minWidth: '12rem' }}></Column>
                         <Column field="createdAt" header="Created At" sortable body={(rowData) => formatDate(rowData.createdAt)} />
-                        <Column field="updatedBy" header="Updated By" sortable body={UpdateByBodyTemplate} style={{ minWidth: '12rem' }}></Column>
+                        <Column field="updatedBy" header="Updated By" sortable body={UpdateByBodyTemplate}  style={{ minWidth: '12rem' }}></Column>
                         <Column field="updatedAt" header="Updated At" sortable body={(rowData) => formatDate(rowData.updatedAt)} />
                         <Column field="roles" header="Roles" filter body={rolesBodyTemplate} sortable style={{ minWidth: '12rem' }}></Column>
                         <Column field="status" header="Status" filter body={statusBodyTemplate} sortable style={{ minWidth: '12rem' }}></Column>
@@ -464,13 +472,13 @@ const Crud = () => {
 
                     <div className="field">
                         <label htmlFor="role">Role</label>
-                        <MultiSelect
-                            id="roles"
-                            value={user.roles}
-                            options={roles}
-                            onChange={(e) => setUser({ ...user, roles: e.value })}
-                            optionLabel="label"
-                            placeholder="Select Roles"
+                        <MultiSelect 
+                            id="roles" 
+                            value={user.roles} 
+                            options={roles} 
+                            onChange={(e) => setUser({ ...user, roles: e.value })} 
+                            optionLabel="label" 
+                            placeholder="Select Roles" 
                             display="chip" />
                     </div>
                 </Dialog>

@@ -1,14 +1,12 @@
 'use client';
+import { LayoutProvider } from '../layout/context/layoutcontext';
+import { UserProvider } from '../layout/context/usercontext'; // Import UserProvider
+import { PrimeReactProvider } from 'primereact/api';
+import 'primereact/resources/primereact.css';
 import 'primeflex/primeflex.css';
 import 'primeicons/primeicons.css';
-import 'primereact/resources/primereact.css';
-
-import '../modules/demo/styles/Demos.scss';
 import '../styles/layout/layout.scss';
-
-import { PrimeReactProvider } from 'primereact/api';
-import { LayoutProvider } from '../layout/context/layoutcontext';
-import { UserProvider } from '../layout/context/usercontext';
+import '../modules/demo/styles/Demos.scss';
 
 interface RootLayoutProps {
     children: React.ReactNode;

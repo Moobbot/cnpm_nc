@@ -3,14 +3,13 @@
 import React, { useContext, useRef, useState } from 'react';
 import Link from 'next/link';
 
-import { Button } from 'primereact/button';
-import { Divider } from 'primereact/divider';
-import { Ripple } from 'primereact/ripple';
 import { StyleClass } from 'primereact/styleclass';
-import { classNames } from 'primereact/utils';
-
+import { Button } from 'primereact/button';
+import { Ripple } from 'primereact/ripple';
+import { Divider } from 'primereact/divider';
 import { LayoutContext } from '../../../layout/context/layoutcontext';
 import { NodeRef } from '@/types';
+import { classNames } from 'primereact/utils';
 
 const LandingPage = () => {
     const [isHidden, setIsHidden] = useState(false);

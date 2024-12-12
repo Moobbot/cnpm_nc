@@ -1,8 +1,6 @@
 'use client';
 import React, { useState } from "react";
-
 import "../../../modules/demo/styles/request.scss"
-
 interface Patient {
     id: number;
     name: string;

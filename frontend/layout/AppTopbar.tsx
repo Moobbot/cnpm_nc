@@ -2,11 +2,18 @@
 
 import Link from 'next/link';
 import { classNames } from 'primereact/utils';
-import React, { forwardRef, useContext, useImperativeHandle, useRef } from 'react';
+import React, { forwardRef, useContext, useImperativeHandle, useRef, useState } from 'react';
 import { AppTopbarRef } from '@/types';
 import { LayoutContext } from './context/layoutcontext';
+import UserMenu from './components/UserMenu';
 
 const AppTopbar = forwardRef<AppTopbarRef>((props, ref) => {
+    const [isOpen, setIsOpen] = useState(false);
+
+    const toggleMenu = () => {
+        setIsOpen(!isOpen);
+    };
+
     const { layoutConfig, layoutState, onMenuToggle, showProfileSidebar } = useContext(LayoutContext);
     const menubuttonRef = useRef(null);
     const topbarmenuRef = useRef(null);
@@ -21,7 +28,7 @@ const AppTopbar = forwardRef<AppTopbarRef>((props, ref) => {
     return (
         <div className="layout-topbar">
             <Link href="/" className="layout-topbar-logo">
-                <img src={`/layout/images/logo.svg`} width="47.22px" height={'35px'} alt="logo" />
+                <img src={`/layout/images/logo (1).svg`} width="47.22px" height={'35px'} alt="logo" />
                 <span>Lab Information System</span>
             </Link>
 
@@ -38,9 +45,10 @@ const AppTopbar = forwardRef<AppTopbarRef>((props, ref) => {
                     <i className="pi pi-calendar"></i>
                     <span>Calendar</span>
                 </button>
-                <button type="button" className="p-link layout-topbar-button">
+                <button type="button" className="p-link layout-topbar-button" onClick={toggleMenu}>
                     <i className="pi pi-user"></i>
                     <span>Profile</span>
+                    {isOpen && <UserMenu />}
                 </button>
                 <Link href="/setting">
                     <button type="button" className="p-link layout-topbar-button">

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { Base } from '@/types';
+import { getCookie } from 'cookies-next';
 
 class UserService {
     private baseUrl: string;
@@ -9,18 +10,19 @@ class UserService {
     }
 
     private getAuthHeaders() {
-        const token = localStorage.getItem('token'); 
+        const token = getCookie('token');
+
         if (!token) {
-            console.error('No token found in localStorage');
+            console.error('No token found in Cookie');
             throw new Error('No token found');
         }
         return {
-            'Authorization': `Bearer ${token}`,
+            Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json'
         };
     }
 
-    async getUsers(page: number, limit: number): Promise<{ data: any[], total: number, limit: number, pages: number }> {
+    async getUsers(page: number, limit: number): Promise<{ data: any[]; total: number; limit: number; pages: number }> {
         try {
             const response = await axios.get(this.baseUrl, {
                 headers: this.getAuthHeaders(),
@@ -48,7 +50,7 @@ class UserService {
 
     async createUser(user: { username: string; name: string; roles: Base.Role[]; password: string }): Promise<any> {
         try {
-            const roles = user.roles.map(role => role._id);
+            const roles = user.roles.map((role) => role._id);
             const userData = { ...user, roles };
             console.log('Creating user with data:', userData);
             const response = await axios.post(this.baseUrl, userData, {
@@ -68,9 +70,13 @@ class UserService {
 
     async addRoleToUser(userId: string, roles: string): Promise<any> {
         try {
-            const response = await axios.patch(`${this.baseUrl}/${userId}/add-role`, { roles }, {
-                headers: this.getAuthHeaders()
-            });
+            const response = await axios.patch(
+                `${this.baseUrl}/${userId}/add-role`,
+                { roles },
+                {
+                    headers: this.getAuthHeaders()
+                }
+            );
             return response.data;
         } catch (error) {
             console.error('Error adding role to user:', error);
@@ -80,9 +86,13 @@ class UserService {
 
     async deleteRoleFromUser(userId: string, roles: string): Promise<any> {
         try {
-            const response = await axios.patch(`${this.baseUrl}/${userId}/delete-role`, { roles }, {
-                headers: this.getAuthHeaders()
-            });
+            const response = await axios.patch(
+                `${this.baseUrl}/${userId}/delete-role`,
+                { roles },
+                {
+                    headers: this.getAuthHeaders()
+                }
+            );
             return response.data;
         } catch (error) {
             console.error('Error deleting role from user:', error);
@@ -92,9 +102,13 @@ class UserService {
 
     async changeUserStatus(_id: string, status: boolean): Promise<any> {
         try {
-            const response = await axios.put(`${this.baseUrl}/${_id}/change-status`, { status }, {
-                headers: this.getAuthHeaders()
-            });
+            const response = await axios.put(
+                `${this.baseUrl}/${_id}/change-status`,
+                { status },
+                {
+                    headers: this.getAuthHeaders()
+                }
+            );
             return response.data;
         } catch (error) {
             console.error('Error changing user status:', error);
@@ -116,9 +130,13 @@ class UserService {
 
     async changeManyUserStatus(userIds: string[], status: boolean): Promise<any> {
         try {
-            const response = await axios.post(`${this.baseUrl}/change-many-status`, { userIds, status }, {
-                headers: this.getAuthHeaders(),
-            });
+            const response = await axios.post(
+                `${this.baseUrl}/change-many-status`,
+                { userIds, status },
+                {
+                    headers: this.getAuthHeaders()
+                }
+            );
             return response.data;
         } catch (error) {
             console.error('Error changing user status:', error);
