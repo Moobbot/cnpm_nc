@@ -1,6 +1,15 @@
 import { ObjectId } from "mongoose";
 import { IRole } from "./role.interface";
 
+export interface IDetailUser {
+    user_code: string;
+    name: string;
+    avatar?: string;
+    birth_date: Date;
+    address: string;
+    gender: string;
+}
+
 export interface IUser {
     _id: ObjectId;
     username: string;
@@ -12,6 +21,6 @@ export interface IUser {
     updatedAt: Date;
     updatedBy?: string;
     status: boolean;
-    avatar?: string;
     refreshToken?: string;
+    detail_user: IDetailUser;
 }

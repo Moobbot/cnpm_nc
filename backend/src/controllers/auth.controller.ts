@@ -1,259 +1,133 @@
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 import { Request, Response } from "express";
 
 import { validateEnv } from "../config/env.config";
 import ForbiddenError from "../errors/forbidden.error";
-import NotFoundError from "../errors/not-found.error";
 import BadRequestError from "../errors/bad-request.error";
-import { IRole } from "../interfaces/role.interface";
-import { TokenService } from "../services/token.service";
-import { UserService } from "../services/user.service";
-import { signJwt } from "../utils/jwt";
 import { extractTokenFromHeader } from "../utils/util";
 import {
     ChangeOldPasswordSchema,
     LoginUserSchema,
 } from "../validation/auth.validation";
+import { AuthService } from "../services/auth.service";
 
+export class AuthController {
+    private readonly authService: AuthService;
 
-const login = async (req: Request, res: Response) => {
-    LoginUserSchema.parse(req.body);
-
-    const { username, password } = req.body;
-
-    const user = await UserService.findExtendedUser(
-        { username, status: true },
-        { select: "+password" },
-        true
-    );
-
-    if (!user) {
-        throw new ForbiddenError("User does not exist");
+    constructor() {
+        this.authService = new AuthService();
     }
 
-    const userData: any = {
-        _id: user._id,
-        username: user.username,
-        name: user.name,
-        avatar: user.avatar,
+    login = async (req: Request, res: Response) => {
+        LoginUserSchema.parse(req.body);
+
+        const { username, password } = req.body;
+
+        const { userData, accessToken, refreshToken } =
+            await this.authService.login(username, password);
+
+        res.cookie("refreshToken", refreshToken, {
+            httpOnly: true,
+            secure: validateEnv()?.env === "production",
+            sameSite: "strict",
+        })
+            .status(200)
+            .json({
+                success: true,
+                data: userData,
+                message: "Logged in successfully",
+                accessToken,
+            });
     };
 
-    const hasGrantAll = user?.roles.some((role: IRole) => role.grantAll);
-    if (hasGrantAll) {
-        userData.grantAll = true;
-    } else {
-        userData.permissions = Array.from(
-            new Set(
-                user?.roles.flatMap((role) =>
-                    role.permissions.map((permission) => permission.name)
-                )
-            )
-        );
-    }
+    logout = async (req: Request, res: Response) => {
+        const userId = req.userData.userId;
+        const token = extractTokenFromHeader(req) as string;
+        const refreshToken = req.cookies.refreshToken;
 
-    const accessSecret = validateEnv()?.jwtconfig?.accessSecret as string;
-    const accessExpiration = validateEnv()?.jwtconfig
-        ?.accessExpiration as string;
-    const refreshAccessSecret = validateEnv()?.jwtconfig
-        ?.refreshAccessSecret as string;
-    const refreshAccessExpiration = validateEnv()?.jwtconfig
-        ?.refreshAccessExpiration as string;
-
-    const match = await bcrypt.compare(password, user.password);
-
-    if (!match) {
-        throw new ForbiddenError("Invalid credentials");
-    }
-
-    const accessToken = signJwt({ userId: user._id }, accessSecret as string, {
-        expiresIn: accessExpiration,
-    });
-
-    const refreshToken = signJwt(
-        { userId: user._id },
-        refreshAccessSecret as string,
-        {
-            expiresIn: refreshAccessExpiration,
+        if (!refreshToken) {
+            throw new ForbiddenError("Refresh token is required");
         }
-    );
 
-    await UserService.updateUserRefreshToken(user._id.toString(), refreshToken);
+        await this.authService.logout(userId, token);
 
-    delete (user as { password?: string }).password;
-
-    res.cookie("refreshToken", refreshToken, {
-        httpOnly: true,
-        sameSite: "strict",
-    })
-        .status(200)
-        .json({
+        res.clearCookie("refreshToken").status(200).json({
             success: true,
-            data: userData,
-            message: "Logged in successfully",
-            accessToken,
+            message: "Logged out successfully",
         });
-};
+    };
 
-const logout = async (req: Request, res: Response) => {
-    await TokenService.addTokenToBlockList(
-        extractTokenFromHeader(req) as string,
-        validateEnv()?.jwtconfig?.accessExpiration as string
-    );
+    changePassword = async (req: Request, res: Response) => {
+        ChangeOldPasswordSchema.parse(req.body);
+        const { oldPassword, newPassword } = req.body;
+        const userId = req.userData.userId;
 
-    const refreshToken = req.cookies.refreshToken;
+        await this.authService.changePassword(userId, oldPassword, newPassword);
 
-    if (!refreshToken) {
-        throw new ForbiddenError("Refresh token is required");
-    }
+        res.status(200).json({
+            message: "Password changed successfully",
+            success: true,
+        });
+    };
 
-    await UserService.updateUserRefreshToken(req.userData.userId, "");
+    me = async (req: Request, res: Response) => {
+        res.status(200).json({
+            success: true,
+            data: {
+                userId: req.userData.userId,
+                username: req.userData.username,
+                detail_user: req.userData.detail_user,
+                grantAll: req.userData.grantAll,
+                permissions: req.userData.permissions
+                    ? Array.from(req.userData.permissions)
+                    : undefined,
+            },
+        });
+    };
 
-    res.clearCookie("refreshToken").status(200).json({
-        success: true,
-        message: "Logged out successfully",
-    });
-};
+    checkPassword = async (req: Request, res: Response) => {
+        const { password } = req.body;
+        const userId = req.userData.userId;
 
-const changePassword = async (req: Request, res: Response) => {
-    ChangeOldPasswordSchema.parse(req.body);
-    const { oldPassword, newPassword } = req.body;
+        await this.authService.checkPassword(userId, password);
 
-    const user = await UserService.findUser(
-        { _id: req.userData.userId, status: true },
-        { select: "+password" }
-    );
+        res.status(200).json({
+            success: true,
+            message: "Password is correct",
+        });
+    };
 
-    if (!user) {
-        throw new NotFoundError("User not found");
-    }
-
-    const match = await bcrypt.compare(oldPassword, user.password);
-
-    if (!match) {
-        throw new BadRequestError("Incorrect password");
-    }
-
-    // Generate a new hashed password
-    const salt = await bcrypt.genSalt(10);
-    const hashPassword = await bcrypt.hash(newPassword, salt);
-
-    await UserService.updateUserById(req.userData.userId, {
-        password: hashPassword,
-        updatedBy: req.userData?.userId,
-    });
-
-    res.status(200).json({
-        message: "Password changed successfully",
-        success: true,
-    });
-};
-
-const me = async (req: Request, res: Response) => {
-    res.status(200).json({
-        success: true,
-        data: {
-            userId: req.userData.userId,
-            username: req.userData.username,
-            name: req.userData.name,
-            grantAll: req.userData.grantAll,
-            permissions: req.userData.permissions
-                ? Array.from(req.userData.permissions)
-                : undefined,
-        },
-    });
-};
-
-export const checkPassword = async (req: Request, res: Response) => {
-    const { password } = req.body;
-    const user = await UserService.findUser(
-        { _id: req.userData.userId, status: true },
-        { select: "+password" }
-    );
-
-    if (!user) {
-        throw new NotFoundError("User not found");
-    }
-
-    const match = await bcrypt.compare(password, user.password);
-
-    if (!match) {
-        throw new BadRequestError("Incorrect password");
-    }
-
-    res.status(200).json({
-        success: true,
-        message: "Password is correct",
-    });
-};
-
-const changeAvatar = async (req: Request, res: Response) => {
-    if (!req.file) {
-        throw new BadRequestError("Only png, jpg, jpeg files are allowed");
-    }
-
-    const avatar = `data:${req.file.mimetype};base64,${req.file.buffer.toString(
-        "base64"
-    )}`;
-
-    await UserService.updateUserById(req.userData.userId, {
-        avatar,
-        updatedBy: req.userData?.userId,
-    });
-
-    res.status(200).json({
-        message: "Avatar updated successfully",
-        success: true,
-    });
-};
-
-export const refreshToken = async (req: Request, res: Response) => {
-    const refreshToken = req.cookies.refreshToken;
-
-    if (!refreshToken) {
-        throw new ForbiddenError("Refresh token is required");
-    }
-
-    const accessSecret = validateEnv()?.jwtconfig?.accessSecret as string;
-    const accessExpiration = validateEnv()?.jwtconfig
-        ?.accessExpiration as string;
-    const refreshAccessSecret = validateEnv()?.jwtconfig
-        ?.refreshAccessSecret as string;
-    const refreshAccessExpiration = validateEnv()?.jwtconfig
-        ?.refreshAccessExpiration as string;
-
-    try {
-        jwt.verify(refreshToken as string, refreshAccessSecret);
-
-        const user = await UserService.findUserByRefreshToken(refreshToken);
-
-        if (!user) {
-            throw new ForbiddenError("Invalid refresh token");
+    changeAvatar = async (req: Request, res: Response) => {
+        if (!req.file) {
+            throw new BadRequestError("Only png, jpg, jpeg files are allowed");
         }
 
-        const accessToken = signJwt(
-            { userId: user._id },
-            accessSecret as string,
-            {
-                expiresIn: accessExpiration,
-            }
-        );
+        const avatar = `data:${
+            req.file.mimetype
+        };base64,${req.file.buffer.toString("base64")}`;
 
-        const newRefreshToken = signJwt(
-            { userId: user._id },
-            refreshAccessSecret as string,
-            {
-                expiresIn: refreshAccessExpiration,
-            }
-        );
+        const userId = req.userData.userId;
 
-        await UserService.updateUserRefreshToken(
-            user._id.toString(),
-            newRefreshToken
-        );
+        await this.authService.changeAvatar(userId, avatar);
+
+        res.status(200).json({
+            message: "Avatar updated successfully",
+            success: true,
+        });
+    };
+
+    refreshToken = async (req: Request, res: Response) => {
+        const refreshToken = req.cookies.refreshToken;
+
+        if (!refreshToken) {
+            throw new ForbiddenError("Refresh token is required");
+        }
+
+        const { accessToken, newRefreshToken } =
+            await this.authService.refreshToken(refreshToken as string);
 
         res.cookie("refreshToken", newRefreshToken, {
             httpOnly: true,
+            secure: validateEnv()?.env === "production",
             sameSite: "strict",
         })
             .status(200)
@@ -262,17 +136,5 @@ export const refreshToken = async (req: Request, res: Response) => {
                 message: "Token refreshed successfully",
                 accessToken,
             });
-    } catch (err) {
-        throw new ForbiddenError("Invalid refresh token");
-    }
-};
-
-export const AuthController = {
-    login,
-    logout,
-    changePassword,
-    me,
-    checkPassword,
-    changeAvatar,
-    refreshToken,
-};
+    };
+}

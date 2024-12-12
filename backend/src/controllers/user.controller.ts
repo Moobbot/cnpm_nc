@@ -13,163 +13,125 @@ import {
     CreateUserSchema,
     UpdateUserSchema,
 } from "../validation/user.validation";
+import ConflictError from "../errors/conflict.error";
 
-/**
- * Creates a new user in the system with specific roles.
- * - Validates user input using `CreateUserSchema`
- * - Checks for existing username and valid roles
- * - Hashes password and saves user data through `UserService`
- * @param req - Express request object
- * @param res - Express response object
- * @returns JSON response with new user data or error message
- */
-const createUser = async (req: Request, res: Response) => {
-    const validatedData = CreateUserSchema.parse(req.body);
+export class UserController {
+    private readonly userService: UserService;
+    private readonly roleService: RoleService;
 
-    const existingUser = await UserService.findUserByName(
-        validatedData.username
-    );
-
-    if (existingUser) {
-        throw new BadRequestError("User already exists");
+    constructor() {
+        this.userService = new UserService();
+        this.roleService = new RoleService();
     }
-    const roles = await RoleService.findRolesByIds(validatedData.roles);
 
-    if (roles.length !== validatedData.roles.length) {
-        throw new NotFoundError(
-            validatedData.roles.length === 1
-                ? "Role not found"
-                : "Some roles not found"
+    createUser = async (req: Request, res: Response) => {
+        const validatedData = CreateUserSchema.parse(req.body);
+        const userId = req.userData?.userId;
+
+        const newUser = await this.userService.createUser(
+            userId,
+            validatedData
         );
-    }
 
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(validatedData.password, salt);
+        res.status(201).json({
+            message: "User created successfully",
+            success: true,
+            data: newUser,
+        });
+    };
 
-    const newUser = await UserService.createUser({
-        username: validatedData.username,
-        password: hashedPassword,
-        name: validatedData.name,
-        roles: roles,
-        createdBy: req.userData.userId,
-    });
+    getUserById = async (req: Request, res: Response) => {
+        const { id } = req.params;
 
-    res.status(201).json({
-        message: "User created successfully",
-        success: true,
-        data: newUser,
-    });
-};
+        const user = await this.userService.getUserById(id);
 
-const getUserById = async (req: Request, res: Response) => {
-    const { id } = req.params;
+        res.status(200).json({
+            data: user,
+            success: true,
+        });
+    };
 
-    const user = await UserService.findExtendedUser({ _id: id });
-    if (!user) {
-        throw new BadRequestError("User not found");
-    }
+    listAllUsers = async (req: Request, res: Response) => {
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = parseInt(req.query.limit as string) || 10;
 
-    res.status(200).json({
-        data: user,
-        success: true,
-    });
-};
-
-const listAllUsers = async (req: Request, res: Response) => {
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
-
-    const total = await UserService.countUsers();
-
-    const users = await UserService.findAllUsers(page, limit);
-
-    res.status(200).json({
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
-        data: users,
-        success: true,
-    });
-};
-
-const updateUser = async (req: Request, res: Response) => {
-    const validatedData = UpdateUserSchema.parse(req.body);
-
-    const { id } = req.params;
-
-    if (validatedData.password) {
-        const salt = await bcrypt.genSalt(10);
-        validatedData.password = await bcrypt.hash(
-            validatedData.password,
-            salt
+        const { total, users } = await this.userService.listAllUsers(
+            page,
+            limit
         );
-    }
 
-    if (validatedData.roles) {
-        const roles = await RoleService.findRolesByIds(validatedData.roles);
-        if (roles.length !== validatedData.roles.length) {
-            throw new NotFoundError(
-                validatedData.roles.length === 1
-                    ? "Role not found"
-                    : "Some roles not found"
-            );
-        }
-    }
+        res.status(200).json({
+            page,
+            limit,
+            total,
+            pages: Math.ceil(total / limit),
+            data: users,
+            success: true,
+        });
+    };
 
-    const updatedUser = await UserService.updateUserById(id, {
-        ...validatedData,
-        updatedBy: req.userData?.userId,
-    });
+    updateUser = async (req: Request, res: Response) => {
+        const validatedData = UpdateUserSchema.parse(req.body);
 
-    res.status(200).json({
-        message: "User updated successfully",
-        success: true,
-        data: updatedUser,
-    });
-};
+        const { id } = req.params;
+        const userId = req.userData?.userId;
 
-const changeUserStatus = async (req: Request, res: Response) => {
-    const validatedData = ChangeUserStatusSchema.parse(req.body);
+        const updatedUser = await this.userService.updateUser(
+            userId,
+            id,
+            validatedData
+        );
 
-    const { id } = req.params;
+        res.status(200).json({
+            message: "User updated successfully",
+            success: true,
+            data: updatedUser,
+        });
+    };
 
-    const { status } = validatedData;
+    changeUserStatus = async (req: Request, res: Response) => {
+        const validatedData = ChangeUserStatusSchema.parse(req.body);
 
-    const updatedUser = await UserService.updateUserById(id, {
-        status,
-        updatedBy: req.userData?.userId,
-    });
+        const { id } = req.params;
 
-    res.status(200).json({
-        message: `User ${status ? "activated" : "deactivated"} successfully`,
-        success: true,
-        data: updatedUser,
-    });
-};
+        const { status } = validatedData;
 
-const changeManyUserStatus = async (req: Request, res: Response) => {
-    const validatedData = ChangeManyUserStatusSchema.parse(req.body);
+        const userId = req.userData?.userId;
 
-    const { userIds, status } = validatedData;
+        const updatedUser = await this.userService.changeUserStatus(
+            userId,
+            id,
+            status
+        );
 
-    const updatedUsers = await UserService.updateUserByIds(userIds, {
-        status,
-        updatedBy: req.userData?.userId,
-    });
+        res.status(200).json({
+            message: `User ${
+                status ? "activated" : "deactivated"
+            } successfully`,
+            success: true,
+            data: updatedUser,
+        });
+    };
 
-    res.status(200).json({
-        message: `Users ${status ? "activated" : "deactivated"} successfully`,
-        success: true,
-        data: updatedUsers,
-    });
-};
+    changeManyUserStatus = async (req: Request, res: Response) => {
+        const validatedData = ChangeManyUserStatusSchema.parse(req.body);
 
-export const UserController = {
-    createUser,
-    getUserById,
-    listAllUsers,
-    updateUser,
-    changeUserStatus,
-    changeManyUserStatus,
-};
+        const { userIds, status } = validatedData;
+
+        const userId = req.userData?.userId;
+
+        const updatedUsers = await this.userService.changeManyUserStatus(
+            userId,
+            userIds,
+            status
+        );
+
+        res.status(200).json({
+            message: `Users ${
+                status ? "activated" : "deactivated"
+            } successfully`,
+            success: true,
+            data: updatedUsers,
+        });
+    };
+}

@@ -5,92 +5,98 @@ import BadRequestError from "../errors/bad-request.error";
 import {
     ChangePermissionStatusSchema,
     CreatePermissionSchema,
+    UpdatePermissionSchema,
 } from "../validation/permission.validation";
+import ConflictError from "../errors/conflict.error";
 
-const createPermission = async (req: Request, res: Response) => {
-    CreatePermissionSchema.parse(req.body);
+export class PermissionController {
+    private readonly permissionService: PermissionService;
 
-    const { name } = req.body;
-
-    const existingPermission = await PermissionService.findPermissionByName(
-        name
-    );
-
-    if (existingPermission) {
-        throw new BadRequestError("Permission already exists");
+    constructor() {
+        this.permissionService = new PermissionService();
     }
 
-    const permission = await PermissionService.createPermission({
-        name,
-        createdBy: req.userData.userId,
-    });
+    createPermission = async (req: Request, res: Response) => {
+        CreatePermissionSchema.parse(req.body);
 
-    res.status(201).json({
-        message: "Permission created successfully",
-        success: true,
-        data: permission,
-    });
-};
+        const { name, description } = req.body;
+        const userId = req.userData.userId;
 
-const listAllPermissions = async (req: Request, res: Response) => {
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
+        const permission = await this.permissionService.createPermission(
+            userId,
+            name,
+            description
+        );
 
-    const total = await PermissionService.countPermissions();
+        res.status(201).json({
+            message: "Permission created successfully",
+            success: true,
+            data: permission,
+        });
+    };
 
-    const permissions = await PermissionService.findAllPermissions(page, limit);
-    res.status(200).json({
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
-        permissions,
-        success: true,
-    });
-};
+    updatePermission = async (req: Request, res: Response) => {
+        const { id } = req.params;
 
-const getPermissionById = async (req: Request, res: Response) => {
-    const { id } = req.params;
+        UpdatePermissionSchema.parse(req.body);
 
-    const permission = await PermissionService.findPermissionById(id);
-    if (!permission) {
-        throw new NotFoundError("Permission not found");
-    }
+        const { description } = req.body;
+        const userId = req.userData.userId;
 
-    res.status(200).json({
-        data: permission,
-        success: true,
-    });
-};
+        const updatedPermission = await this.permissionService.updatePermission(
+            userId,
+            id,
+            description
+        );
 
-const changePermissionStatus = async (req: Request, res: Response) => {
-    ChangePermissionStatusSchema.parse(req.body);
+        res.status(200).json({
+            message: "Permission updated successfully",
+            success: true,
+            data: updatedPermission,
+        });
+    };
 
-    const { id } = req.params;
+    listAllPermissions = async (req: Request, res: Response) => {
+        const permissions = await this.permissionService.listAllPermissions();
+        res.status(200).json({
+            permissions,
+            success: true,
+        });
+    };
 
-    const { status } = req.body;
+    getPermissionById = async (req: Request, res: Response) => {
+        const { id } = req.params;
 
-    const updatedPermission = await PermissionService.updatePermissionById(id, {
-        status,
-        updatedBy: req.userData?.userId,
-    });
+        const permission = await this.permissionService.getPermissionById(id);
 
-    if (!updatedPermission) {
-        throw new NotFoundError("Permission not found");
-    }
+        res.status(200).json({
+            data: permission,
+            success: true,
+        });
+    };
 
-    res.status(200).json({
-        message: `Permission ${
-            status ? "activated" : "deactivated"
-        } successfully`,
-        success: true,
-        data: updatedPermission,
-    });
-};
+    changePermissionStatus = async (req: Request, res: Response) => {
+        ChangePermissionStatusSchema.parse(req.body);
 
-export const PermissionController = {
-    createPermission,
-    listAllPermissions,
-    getPermissionById,
-    changePermissionStatus,
-};
+        const { id } = req.params;
+
+        const { status } = req.body;
+
+        const userId = req.userData.userId;
+
+        const updatedPermission =
+            await this.permissionService.changePermissionStatus(
+                userId,
+                id,
+                status
+            );
+
+        res.status(200).json({
+            message: `Permission ${
+                status ? "activated" : "deactivated"
+            } successfully`,
+            success: true,
+            data: updatedPermission,
+        });
+    };
+}

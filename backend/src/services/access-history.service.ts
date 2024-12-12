@@ -1,10 +1,29 @@
 import { IAccessHistory } from "../interfaces/access-history.interface";
-import { AccessHistoryModel } from "../models/access-history.model";
+import { AccessHistoryRepository } from "../repositories/access-history.repository";
 
-const createAccessHistory = (accessHistoryData: Partial<IAccessHistory>) => {
-    return AccessHistoryModel.create(accessHistoryData);
-};
+export class AccessHistoryService {
+    private readonly accessHistoryRepository: AccessHistoryRepository;
 
-export const AccessHistoryService = {
-    createAccessHistory,
-};
+    constructor() {
+        this.accessHistoryRepository = new AccessHistoryRepository();
+    }
+
+    createAccessHistory = async (accessData: Partial<IAccessHistory>) => {
+        return await this.accessHistoryRepository.create(accessData);
+    };
+
+    listAllAccessHistory = async (page: number, limit: number) => {
+        const total = await this.accessHistoryRepository.count();
+
+        const history = await this.accessHistoryRepository.findAll(
+            {},
+            page,
+            limit
+        );
+
+        return {
+            total,
+            history,
+        };
+    };
+}

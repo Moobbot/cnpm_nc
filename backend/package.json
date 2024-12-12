@@ -37,6 +37,7 @@
     "express-mongo-sanitize": "^2.2.0",
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
+    "mongo-migrate-ts": "^1.6.2",
     "mongoose": "^8.7.0",
     "morgan": "^1.10.0",
     "ms": "^2.1.3",

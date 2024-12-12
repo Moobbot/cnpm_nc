@@ -1,61 +1,84 @@
-import { FilterQuery, QueryOptions, UpdateQuery } from "mongoose";
+import { Request, Response } from "express";
+import BadRequestError from "../errors/bad-request.error";
+import NotFoundError from "../errors/not-found.error";
+import { RoleRepository } from "../repositories/role.repository";
+import { PermissionRepository } from "../repositories/permission.repository";
+import {
+    ChangeRoleStatusSchema,
+    CreateRoleSchema,
+    UpdateRoleSchema,
+} from "../validation/role.validation";
+import ConflictError from "../errors/conflict.error";
 import { IRole } from "../interfaces/role.interface";
-import { RoleModel } from "../models/role.model";
-import { count } from "console";
+import { z } from "zod";
 
-const findAllRoles = (page: number, limit: number) => {
-    const startIndex = (page - 1) * limit;
+export class RoleService {
+    private readonly roleRepository: RoleRepository;
+    private readonly permissionRepository: PermissionRepository;
 
-    return RoleModel.find().skip(startIndex).limit(limit);
-};
+    constructor() {
+        this.roleRepository = new RoleRepository();
+        this.permissionRepository = new PermissionRepository();
+    }
 
-const findRoleById = (id: string) => {
-    return RoleModel.findById(id);
-};
+    createRole = async (userId: string, name: string, grantAll: boolean) => {
+        const existingRole = await this.roleRepository.findRoleByName(name);
 
-const findRolesByIds = (ids: string[]) => {
-    return RoleModel.find({ _id: { $in: ids } });
+        if (existingRole) {
+            throw new ConflictError("Role already exists");
+        }
+
+        return await this.roleRepository.create({
+            name,
+            grantAll,
+            createdBy: userId,
+        });
+    };
+
+    listAllRoles = async () => {
+        return await this.roleRepository.findAll();
+    };
+
+    getRoleById = async (id: string) => {
+        return await this.roleRepository.findById(id);
+    };
+
+    updateRole = async (
+        userId: string,
+        id: string,
+        data: z.infer<typeof UpdateRoleSchema>
+    ) => {
+        if (data.permissions) {
+            const permissions = await this.permissionRepository.findByIds(
+                data.permissions
+            );
+            if (permissions.length !== data.permissions.length) {
+                throw new BadRequestError("Some permissions are invalid");
+            }
+        }
+
+        const updatedRole = await this.roleRepository.updateById(id, {
+            ...data,
+            updatedBy: userId,
+        });
+
+        if (!updatedRole) {
+            throw new NotFoundError("Role not found");
+        }
+
+        return updatedRole;
+    };
+
+    changeRoleStatus = async (userId: string, id: string, status: boolean) => {
+        const updatedRole = await this.roleRepository.updateById(id, {
+            status: status,
+            updatedBy: userId,
+        });
+
+        if (!updatedRole) {
+            throw new NotFoundError("Role not found");
+        }
+
+        return updatedRole;
+    };
 }
-
-const findRoleByName = (name: string) => {
-    return RoleModel.findOne({ name: name });
-};
-
-// const findRoles = (
-//     filter: FilterQuery<IRole>,
-//     options: QueryOptions = { lean: true }
-// ) => {
-//     return RoleModel.find(filter, {}, options);
-// };
-
-const createRole = (roleData: Partial<IRole>) => {
-    return RoleModel.create(roleData);
-};
-
-const deleteRoleById = (id: string) => {
-    return RoleModel.deleteOne({ _id: id });
-};
-
-const updateRoleById = (
-    id: string,
-    update: UpdateQuery<IRole>,
-    options: QueryOptions = { new: true }
-) => {
-    return RoleModel.findByIdAndUpdate(id, update, options);
-};
-
-const countRoles = () => {
-    return RoleModel.countDocuments();
-};
-
-export const RoleService = {
-    findAllRoles,
-    findRoleById,
-    findRolesByIds,
-    findRoleByName,
-    // findRoles,
-    createRole,
-    deleteRoleById,
-    updateRoleById,
-    countRoles,
-};

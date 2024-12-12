@@ -12,11 +12,13 @@ import { IRole } from "../interfaces/role.interface";
 import { IPermission } from "../interfaces/permission.interface";
 
 import { PermissionService } from "../services/permission.service";
-import { TokenService } from "../services/token.service";
-import { UserService } from "../services/user.service";
+import { UserRepository } from "../repositories/user.repository";
 
 import { extractTokenFromHeader } from "../utils/util";
 import { UserDataType } from "../types/express";
+import { isTokenBlocked } from "../utils/token-cache";
+
+const userRepository = new UserRepository();
 
 export const authMiddleware = async (
     req: Request,
@@ -26,9 +28,13 @@ export const authMiddleware = async (
     const jwtconfig = validateEnv()?.jwtconfig;
     const token = extractTokenFromHeader(req);
     if (!token) {
-        return next(new UnAuthenticatedError("Something went wrong when extracting tokens. Did you forget Bearer?"));
+        return next(
+            new UnAuthenticatedError(
+                "Something went wrong when extracting tokens. Did you forget Bearer?"
+            )
+        );
     }
-    const tokenBlocked = await TokenService.isTokenBlocked(token as string);
+    const tokenBlocked = await isTokenBlocked(token as string);
     if (tokenBlocked) {
         return next(new ForbiddenError("Token expires"));
     }
@@ -39,37 +45,35 @@ export const authMiddleware = async (
             jwtconfig?.accessSecret as string
         ) as UserDataType;
 
-        const user = await UserService.findExtendedUser({
-            _id: payload?.userId,
-        });
+        const user = await userRepository.findExtendedUserById(payload?.userId);
 
         if (!user) {
             return next(new UnAuthenticatedError("User not found"));
         }
 
+        req.userData = {
+            userId: payload?.userId,
+            username: user.username,
+            detail_user: user.detail_user,
+        };
+
         const hasGrantAll = user?.roles.some((role: IRole) => role.grantAll);
         if (hasGrantAll) {
-            req.userData = {
-                userId: payload?.userId,
-                username: user.username,
-                name: user.name,
-                grantAll: true,
-            };
+            req.userData.grantAll = true;
         } else {
-            req.userData = {
-                userId: payload?.userId,
-                username: user.username,
-                name: user.name,
-                permissions: new Set(
-                    user?.roles.flatMap((role) =>
-                        role.permissions.map((permission) => permission.name)
-                    )
-                ),
-            };
+            req.userData.permissions = new Set(
+                user?.roles.flatMap((role) =>
+                    role.permissions.map((permission) => permission.name)
+                )
+            );
         }
 
         next();
     } catch (err) {
-        next(new UnAuthenticatedError("Something went wrong when verifying tokens"));
+        next(
+            new UnAuthenticatedError(
+                "Something went wrong when verifying tokens"
+            )
+        );
     }
 };

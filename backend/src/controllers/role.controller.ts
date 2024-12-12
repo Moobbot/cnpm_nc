@@ -8,118 +8,96 @@ import {
     CreateRoleSchema,
     UpdateRoleSchema,
 } from "../validation/role.validation";
+import ConflictError from "../errors/conflict.error";
 
-const createRole = async (req: Request, res: Response) => {
-    CreateRoleSchema.parse(req.body);
+export class RoleController {
+    private readonly roleService: RoleService;
+    private readonly permissionService: PermissionService;
 
-    const { name, grantAll } = req.body;
-    const existingRole = await RoleService.findRoleByName(name);
-
-    if (existingRole) {
-        throw new BadRequestError("Role already exists");
+    constructor() {
+        this.roleService = new RoleService();
+        this.permissionService = new PermissionService();
     }
 
-    const role = await RoleService.createRole({
-        name,
-        grantAll,
-        createdBy: req.userData.userId,
-    });
-    res.status(201).json({
-        message: "Role created successfully",
-        success: true,
-        data: role,
-    });
-};
+    createRole = async (req: Request, res: Response) => {
+        CreateRoleSchema.parse(req.body);
 
-const listAllRoles = async (req: Request, res: Response) => {
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
+        const { name, grantAll } = req.body;
+        const userId = req.userData?.userId;
 
-    const total = await RoleService.countRoles();
+        const role = await this.roleService.createRole(userId, name, grantAll);
+        
+        res.status(201).json({
+            message: "Role created successfully",
+            success: true,
+            data: role,
+        });
+    };
 
-    const roles = await RoleService.findAllRoles(page, limit);
+    listAllRoles = async (req: Request, res: Response) => {
+        const roles = await this.roleService.listAllRoles();
 
-    res.status(200).json({
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
-        data: roles,
-        success: true,
-    });
-};
+        res.status(200).json({
+            data: roles,
+            success: true,
+        });
+    };
 
-const getRoleById = async (req: Request, res: Response) => {
-    const { id } = req.params;
+    getRoleById = async (req: Request, res: Response) => {
+        const { id } = req.params;
 
-    const role = await RoleService.findRoleById(id);
-    if (!role) {
-        throw new NotFoundError("Role not found");
-    }
-
-    res.status(200).json({
-        data: role,
-        success: true,
-    });
-};
-
-const updateRole = async (req: Request, res: Response) => {
-    const validatedData = UpdateRoleSchema.parse(req.body);
-
-    const { id } = req.params;
-
-    if (validatedData.permissions) {
-        const permissions = await PermissionService.findPermissionsByIds(
-            validatedData.permissions
-        );
-        if (permissions.length !== validatedData.permissions.length) {
-            throw new BadRequestError("Some permissions are invalid");
+        const role = await this.roleService.getRoleById(id);
+        if (!role) {
+            throw new NotFoundError("Role not found");
         }
-    }
 
-    const updatedRole = await RoleService.updateRoleById(id, {
-        ...validatedData,
-        updatedBy: req.userData?.userId,
-    });
+        res.status(200).json({
+            data: role,
+            success: true,
+        });
+    };
 
-    if (!updatedRole) {
-        throw new NotFoundError("Role not found");
-    }
+    updateRole = async (req: Request, res: Response) => {
+        const validatedData = UpdateRoleSchema.parse(req.body);
 
-    res.status(200).json({
-        message: "Role updated successfully",
-        success: true,
-        data: updatedRole,
-    });
-};
+        const { id } = req.params;
 
-const changeRoleStatus = async (req: Request, res: Response) => {
-    ChangeRoleStatusSchema.parse(req.body);
+        const userId = req.userData?.userId;
 
-    const { id } = req.params;
+        const updatedRole = await this.roleService.updateRole(
+            userId,
+            id,
+            validatedData
+        );
 
-    const { status } = req.body;
+        res.status(200).json({
+            message: "Role updated successfully",
+            success: true,
+            data: updatedRole,
+        });
+    };
 
-    const updatedRole = await RoleService.updateRoleById(id, {
-        status: status,
-        updatedBy: req.userData?.userId,
-    });
+    changeRoleStatus = async (req: Request, res: Response) => {
+        ChangeRoleStatusSchema.parse(req.body);
 
-    if (!updatedRole) {
-        throw new NotFoundError("Role not found");
-    }
+        const { id } = req.params;
 
-    res.status(200).json({
-        message: `Role ${status ? "activated" : "deactivated"} successfully`,
-        success: true,
-        data: updatedRole,
-    });
-};
+        const { status } = req.body;
 
-export const RoleController = {
-    createRole,
-    listAllRoles,
-    getRoleById,
-    updateRole,
-    changeRoleStatus,
-};
+        const userId = req.userData?.userId;
+
+        const updatedRole = await this.roleService.changeRoleStatus(
+            userId,
+            id,
+            status
+        );
+
+        res.status(200).json({
+            message: `Role ${
+                status ? "activated" : "deactivated"
+            } successfully`,
+            success: true,
+            data: updatedRole,
+        });
+    };
+}

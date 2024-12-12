@@ -1,10 +1,11 @@
 import { User } from "@prisma/client";
+import { IDetailUser } from "../interfaces/user.interface";
 // import express  from "express";
 
 export interface UserDataType {
     userId: string;
     username: string;
-    name: string;
+    detail_user: IDetailUser;
     grantAll?: boolean;
     permissions?: Set<string>;
 }

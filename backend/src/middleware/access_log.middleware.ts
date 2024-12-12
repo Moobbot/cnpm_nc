@@ -8,6 +8,7 @@ import { AccessHistoryService } from "../services/access-history.service";
 
 import redactLogData from "../utils/redact-logs";
 
+const accessHistoryService = new AccessHistoryService();
 
 const accessHistoryMiddleware = async (
     req: Request,
@@ -61,7 +62,9 @@ const accessHistoryMiddleware = async (
             status: null, // sẽ cập nhật sau khi hoàn thành request
             message: "",
             requestBody:
-                req.method === "POST" || req.method === "PUT" ? redactLogData(req.body) : null,
+                req.method === "POST" || req.method === "PUT"
+                    ? redactLogData(req.body)
+                    : null,
         },
     };
 
@@ -70,7 +73,7 @@ const accessHistoryMiddleware = async (
         accessData.miscellaneous!.status =
             res.statusCode >= 200 && res.statusCode < 300 ? true : false;
         try {
-            AccessHistoryService.createAccessHistory(accessData);
+            accessHistoryService.createAccessHistory(accessData);
         } catch (error) {
             console.error("Something went wrong:", error);
         }

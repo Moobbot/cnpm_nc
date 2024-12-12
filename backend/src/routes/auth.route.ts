@@ -8,38 +8,39 @@ import accessHistoryMiddleware from "../middleware/access_log.middleware";
 import { upload } from "../middleware/upload.middleware";
 
 const authRouter: Router = Router();
+const authController = new AuthController();
 
 authRouter.get(
     "/me",
     [authMiddleware, accessHistoryMiddleware],
-    asyncHandler(AuthController.me)
+    asyncHandler(authController.me)
 );
 authRouter.post(
     "/login",
     [accessHistoryMiddleware],
-    asyncHandler(AuthController.login)
+    asyncHandler(authController.login)
 );
 authRouter.post(
     "/logout",
     [authMiddleware, accessHistoryMiddleware],
-    asyncHandler(AuthController.logout)
+    asyncHandler(authController.logout)
 );
 authRouter.post(
     "/check-password",
     [authMiddleware, accessHistoryMiddleware],
-    asyncHandler(AuthController.checkPassword)
+    asyncHandler(authController.checkPassword)
 );
-authRouter.post("/refresh-token", asyncHandler(AuthController.refreshToken));
+authRouter.post("/refresh-token", asyncHandler(authController.refreshToken));
 authRouter.put(
     "/change-password",
     [authMiddleware, accessHistoryMiddleware],
-    asyncHandler(AuthController.changePassword)
+    asyncHandler(authController.changePassword)
 );
 authRouter.put(
     "/change-avatar",
     [authMiddleware, accessHistoryMiddleware],
     upload.single("avatar"),
-    asyncHandler(AuthController.changeAvatar)
+    asyncHandler(authController.changeAvatar)
 );
 
 export default authRouter;

@@ -1,60 +1,89 @@
-import { FilterQuery, QueryOptions, UpdateQuery } from "mongoose";
-import { IPermission } from "../interfaces/permission.interface";
-import { PermissionModel } from "../models/permission.model";
+import { Request, Response } from "express";
+import NotFoundError from "../errors/not-found.error";
+import { PermissionRepository } from "../repositories/permission.repository";
+import BadRequestError from "../errors/bad-request.error";
+import {
+    ChangePermissionStatusSchema,
+    CreatePermissionSchema,
+    UpdatePermissionSchema,
+} from "../validation/permission.validation";
+import ConflictError from "../errors/conflict.error";
 
-const findAllPermissions = (page: number, limit: number) => {
-    const startIndex = (page - 1) * limit;
+export class PermissionService {
+    private readonly permissionRepository: PermissionRepository;
 
-    return PermissionModel.find().skip(startIndex).limit(limit);
-};
+    constructor() {
+        this.permissionRepository = new PermissionRepository();
+    }
 
-const findPermissionById = (id: string) => {
-    return PermissionModel.findById(id);
-};
+    createPermission = async (
+        userId: string,
+        name: string,
+        description: string
+    ) => {
+        const existingPermission =
+            await this.permissionRepository.findPermissionByName(name);
 
-const findPermissionsByIds = (ids: string[]) => {
-    return PermissionModel.find({ _id: { $in: ids } });
+        if (existingPermission) {
+            throw new ConflictError("Permission already exists");
+        }
+
+        const permission = await this.permissionRepository.create({
+            name,
+            description,
+            createdBy: userId,
+        });
+
+        return permission;
+    };
+
+    updatePermission = async (
+        userId: string,
+        id: string,
+        description: string
+    ) => {
+        const updatedPermission = await this.permissionRepository.updateById(
+            id,
+            {
+                description,
+                updatedBy: userId,
+            }
+        );
+
+        if (!updatedPermission) {
+            throw new NotFoundError("Permission not found");
+        }
+
+        return updatedPermission;
+    };
+
+    listAllPermissions = async () => {
+        return await this.permissionRepository.findAll();
+    };
+
+    getPermissionById = async (id: string) => {
+        const permission = await this.permissionRepository.findById(id);
+        if (!permission) {
+            throw new NotFoundError("Permission not found");
+        }
+        return permission;
+    };
+
+    changePermissionStatus = async (
+        userId: string,
+        id: string,
+        status: boolean
+    ) => {
+        const updatedPermission = await this.permissionRepository.updateById(
+            id,
+            {
+                status,
+                updatedBy: userId,
+            }
+        );
+        if (!updatedPermission) {
+            throw new NotFoundError("Permission not found");
+        }
+        return updatedPermission;
+    };
 }
-
-const findPermissionByName = (name: string) => {
-    return PermissionModel.findOne({ name });
-};
-
-// const findPermissions = (
-//     filter: FilterQuery<IPermission>,
-//     options: QueryOptions = { lean: true }
-// ) => {
-//     return PermissionModel.find(filter, {}, options);
-// };
-
-const createPermission = (permissionData: Partial<IPermission>) => {
-    return PermissionModel.create(permissionData);
-};
-
-const deletePermissionById = (id: string) => {
-    return PermissionModel.findByIdAndDelete(id);
-};
-
-const updatePermissionById = (
-    id: string,
-    permissionData: UpdateQuery<IPermission>,
-    options: QueryOptions = { new: true }
-) => {
-    return PermissionModel.findByIdAndUpdate(id, permissionData, options);
-};
-
-const countPermissions = () => {
-    return PermissionModel.countDocuments();
-}
-
-export const PermissionService = {
-    findAllPermissions,
-    findPermissionById,
-    findPermissionsByIds,
-    findPermissionByName,
-    // findPermissions,
-    createPermission,
-    deletePermissionById,
-    updatePermissionById,
-    countPermissions,
-};

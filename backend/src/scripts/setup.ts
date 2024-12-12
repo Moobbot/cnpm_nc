@@ -1,99 +1,215 @@
-import { validateEnv } from "../config/env.config";
-import { connectToDB } from "../config/mongoose";
-import { PermissionModel } from "../models/permission.model";
+import mongoose from "mongoose";
+import { PermissionService } from "../repositories/permission.repository";
+import { RoleService } from "../repositories/role.repository";
+import { UserService } from "../repositories/user.repository";
 import { Permissions } from "../enums/permissions.enum";
-import { RoleModel } from "../models/role.model";
-import { UserModel } from "../models/user.model";
-import rootRouter from "../routes/index.route";
-import { getRoutes } from "./extractRoutes";
+import { connectToDB } from "../config/mongoose";
 import readline from "readline";
 import bcrypt from "bcryptjs";
-import { disconnect } from "mongoose";
 
-const ADMIN_USERNAME = "admin";
-const ADMIN_PASSWORD = "123456";
-const ADMIN_NAME = "Admin";
+// Các icon hiển thị trên console
+const ICONS = {
+  success: "✅",
+  info: "ℹ️",
+  error: "❌",
+  question: "❓",
+};
 
-const askQuestion = (query: string): Promise<string> => {
-    const rl = readline.createInterface({
-        input: process.stdin,
-        output: process.stdout,
+// Hàm hỏi Yes/No
+const askQuestion = (question: string): Promise<boolean> => {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  return new Promise((resolve) => {
+    rl.question(`${ICONS.question} ${question} (y/n): `, (answer) => {
+      rl.close();
+      resolve(answer.toLowerCase() === "y");
     });
-
-    return new Promise((resolve) =>
-        rl.question(query, (ans) => {
-            rl.close();
-            resolve(ans);
-        })
-    );
+  });
 };
 
-const main = async () => {
+// Thêm các Permission
+const addPermissions = async () => {
+  const add = await askQuestion("Do you want to add Permissions?");
+  if (!add) {
+    console.log(`${ICONS.info} Skipped adding Permissions.`);
+    return;
+  }
+
+  const permissions = Object.values(Permissions).map((permission) => ({
+    name: permission,
+    description: `Description for ${permission}`,
+  }));
+
+  for (const permission of permissions) {
     try {
-        validateEnv();
-        await connectToDB();
-
-        const answer = await askQuestion(
-            "Bạn có muốn xóa sạch dữ liệu hiện có trước khi thiết lập? (y/n): "
-        );
-
-        if (answer.toLowerCase() === "y" || answer.toLowerCase() === "yes") {
-            // Xóa sạch các collection
-            await PermissionModel.deleteMany({});
-            await RoleModel.deleteMany({});
-            await UserModel.deleteMany({});
-            console.log("🗑️  Đã xóa sạch dữ liệu hiện có.");
-        } else {
-            console.log(
-                "⚠️  Không xóa dữ liệu hiện có. Script sẽ tiếp tục thêm mới các mục cần thiết."
-            );
-        }
-
-        // Thêm các Permission vào DB
-        const permissionsList = Object.values(Permissions);
-
-        let permissionDocs: { [key: string]: any } = {};
-
-        for (const perm of permissionsList) {
-            const existingPerm = await PermissionModel.findOne({ name: perm });
-
-            if (!existingPerm) {
-                const newPerm = await PermissionModel.create({ name: perm });
-                permissionDocs.perm = newPerm;
-                console.log(`✅ Đã thêm Permission "${perm}"`);
-            } else {
-                console.log(`⚠️ Permission "${perm}" đã tồn tại`);
-                permissionDocs.perm = existingPerm;
-            }
-        }
-
-        console.log("✅ Đã thêm tất cả các Permission");
-
-        const adminRole = new RoleModel({
-            name: "ADMIN",
-            grantAll: true,
-        });
-        await adminRole.save();
-        console.log('✅ Đã tạo Role "ADMIN" với grantAll=true');
-
-        const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, 10);
-        const adminUser = new UserModel({
-            username: ADMIN_USERNAME,
-            password: hashedPassword,
-            name: ADMIN_NAME,
-            roles: [adminRole._id],
-            status: true,
-        });
-        await adminUser.save();
-        console.log(`✅ Đã tạo tài khoản admin: ${ADMIN_USERNAME}`);
-
-        console.log("🎉 Hoàn thành quá trình thiết lập");
-    } catch (error) {
-        console.error("❌ Lỗi trong quá trình thiết lập:", error);
-    } finally {
-        await disconnect();
-        console.log("🔌 Ngắt kết nối MongoDB");
+      await PermissionService.createPermission(permission);
+    } catch (err) {
+      console.log(
+        `${ICONS.info} Permission '${permission.name}' already exists.`
+      );
     }
+  }
+  console.log(`${ICONS.success} Permissions added or verified successfully.`);
 };
 
-main();
+// Tạo các Role
+const addRoles = async () => {
+  const add = await askQuestion("Do you want to add Roles?");
+  if (!add) {
+    console.log(`${ICONS.info} Skipped adding Roles.`);
+    return;
+  }
+
+  const allPermissions = await PermissionService.findAllPermissions();
+  const permissionsMap = Object.fromEntries(
+    allPermissions.map((perm) => [perm.name, perm])
+  );
+
+  const roles = [
+    {
+      name: "Admin",
+      permissions: [],
+      description: "Đây là role Admin, có tất cả các quyền.",
+      grantAll: true,
+    },
+    {
+      name: "Bác Sỹ CNXN",
+      permissions: [
+        permissionsMap[Permissions.LIST_ALL_USERS],
+        permissionsMap[Permissions.GET_USER],
+        permissionsMap[Permissions.EDIT_USER],
+      ],
+      description: "Đây là role Bác Sỹ CNXN",
+      grantAll: false,
+    },
+    {
+      name: "KTV lấy mẫu",
+      permissions: [permissionsMap[Permissions.LIST_ALL_ACCESS_HISTORY]],
+      description: "Đây là role KTV lấy mẫu",
+      grantAll: false,
+    },
+    {
+      name: "KTV xét nghiệm",
+      permissions: [
+        permissionsMap[Permissions.LIST_ALL_PERMISSIONS],
+        permissionsMap[Permissions.GET_PERMISSION],
+      ],
+      description: "Đây là role KTV xét nghiệm",
+      grantAll: false,
+    },
+  ];
+
+  for (const role of roles) {
+    try {
+      await RoleService.createRole(role);
+    } catch (err) {
+      console.log(`${ICONS.info} Role '${role.name}' already exists.`);
+    }
+  }
+  console.log(`${ICONS.success} Roles added or verified successfully.`);
+};
+
+// Tạo các User
+const addUsers = async () => {
+  const add = await askQuestion("Do you want to add Users?");
+  if (!add) {
+    console.log(`${ICONS.info} Skipped adding Users.`);
+    return;
+  }
+
+  const roles = await RoleService.findAllRoles();
+  const roleMap = Object.fromEntries(roles.map((role) => [role.name, role]));
+
+  const users = [
+    {
+      username: "admin_user",
+      password: "123456",
+      roles: [roleMap["Admin"]],
+      detail_user: {
+        user_code: "ADMIN001",
+        name: "Admin User",
+        birth_date: new Date("1980-01-01"),
+        address: "Admin Address",
+        gender: "Male",
+      },
+    },
+    {
+      username: "doctor_user",
+      password: "123456",
+      roles: [roleMap["Bác Sỹ CNXN"]],
+      detail_user: {
+        user_code: "DOCTOR001",
+        name: "Doctor User",
+        birth_date: new Date("1985-02-02"),
+        address: "Doctor Address",
+        gender: "Female",
+      },
+    },
+    {
+      username: "ktv_sample",
+      password: "123456",
+      roles: [roleMap["KTV lấy mẫu"]],
+      detail_user: {
+        user_code: "SAMPLE001",
+        name: "Sample Technician",
+        birth_date: new Date("1990-03-03"),
+        address: "Technician Address",
+        gender: "Male",
+      },
+    },
+    {
+      username: "ktv_test",
+      password: "123456",
+      roles: [roleMap["KTV xét nghiệm"]],
+      detail_user: {
+        user_code: "TEST001",
+        name: "Testing Technician",
+        birth_date: new Date("1995-04-04"),
+        address: "Testing Address",
+        gender: "Other",
+      },
+    },
+  ];
+
+  for (const user of users) {
+    try {
+      const existingUser = await UserService.findUserByName(user.username);
+      if (existingUser) {
+        console.log(`${ICONS.info} User '${user.username}' already exists.`);
+        continue;
+      }
+
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(user.password, salt);
+      user.password = hashedPassword;
+
+      await UserService.createUser(user);
+      console.log(
+        `${ICONS.success} User '${user.username}' added successfully.`
+      );
+    } catch (err: any) {
+      console.error(
+        `${ICONS.error} Error adding user '${user.username}':`,
+        err.message
+      );
+    }
+  }
+};
+
+// Main function
+const main = async () => {
+  await connectToDB();
+  await addPermissions();
+  await addRoles();
+  await addUsers();
+  console.log(`${ICONS.success} Setup completed.`);
+  process.exit(0);
+};
+
+main().catch((err) => {
+  console.error(`${ICONS.error} Error in setup:`, err.message);
+  process.exit(1);
+});

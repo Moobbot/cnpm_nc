@@ -1,5 +1,21 @@
 import { Schema, model } from "mongoose";
-import { IUser } from "../interfaces/user.interface";
+import { IDetailUser, IUser } from "../interfaces/user.interface";
+
+const detailSchema = new Schema<IDetailUser>(
+    {
+        user_code: { type: String, required: [true, "User code is required"] },
+        name: { type: String, required: [true, "Name is required"] },
+        avatar: { type: String, default: null },
+        birth_date: { type: Date, required: [true, "Birth date is required"] },
+        address: { type: String, required: [true, "Address is required"] },
+        gender: {
+            type: String,
+            enum: ["Male", "Female", "Other"],
+            required: [true, "Gender is required"],
+        },
+    },
+    { _id: false }
+);
 
 const userSchema = new Schema<IUser>(
     {
@@ -13,13 +29,12 @@ const userSchema = new Schema<IUser>(
             required: [true, "Password is required"],
             select: false,
         },
-        name: { type: String, required: [true, "Name is required"] },
         roles: [{ type: Schema.Types.ObjectId, ref: "Role" }],
         createdBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
         updatedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
         status: { type: Boolean, default: true },
-        avatar: { type: String, default: null },
         refreshToken: { type: String, default: null, select: false },
+        detail_user: { type: detailSchema, required: true },
     },
     { timestamps: true }
 );
