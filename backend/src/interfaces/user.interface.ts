@@ -1,4 +1,4 @@
-import { ObjectId } from "mongoose";
+import { ObjectId, Types } from "mongoose";
 import { IRole } from "./role.interface";
 
 export interface IDetailUser {
@@ -11,7 +11,7 @@ export interface IDetailUser {
 }
 
 export interface IUser {
-    _id: ObjectId;
+    _id: Types.ObjectId;
     username: string;
     password: string;
     name: string;

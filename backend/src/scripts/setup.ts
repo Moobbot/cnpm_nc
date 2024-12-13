@@ -1,7 +1,7 @@
-import mongoose from "mongoose";
-import { PermissionService } from "../repositories/permission.repository";
-import { RoleService } from "../repositories/role.repository";
-import { UserService } from "../repositories/user.repository";
+import mongoose, { Types } from "mongoose";
+import { PermissionRepository } from "../repositories/permission.repository";
+import { RoleRepository } from "../repositories/role.repository";
+import { UserRepository } from "../repositories/user.repository";
 import { Permissions } from "../enums/permissions.enum";
 import { connectToDB } from "../config/mongoose";
 import readline from "readline";
@@ -32,6 +32,7 @@ const askQuestion = (question: string): Promise<boolean> => {
 
 // Thêm các Permission
 const addPermissions = async () => {
+  const permissionRepository = new PermissionRepository();
   const add = await askQuestion("Do you want to add Permissions?");
   if (!add) {
     console.log(`${ICONS.info} Skipped adding Permissions.`);
@@ -45,7 +46,7 @@ const addPermissions = async () => {
 
   for (const permission of permissions) {
     try {
-      await PermissionService.createPermission(permission);
+      await permissionRepository.createPermission(permission);
     } catch (err) {
       console.log(
         `${ICONS.info} Permission '${permission.name}' already exists.`
@@ -57,13 +58,15 @@ const addPermissions = async () => {
 
 // Tạo các Role
 const addRoles = async () => {
+  const permissionRepository = new PermissionRepository();
+  const roleRepository = new RoleRepository();
   const add = await askQuestion("Do you want to add Roles?");
   if (!add) {
     console.log(`${ICONS.info} Skipped adding Roles.`);
     return;
   }
 
-  const allPermissions = await PermissionService.findAllPermissions();
+  const allPermissions = await permissionRepository.findAllPermissions();
   const permissionsMap = Object.fromEntries(
     allPermissions.map((perm) => [perm.name, perm])
   );
@@ -104,7 +107,7 @@ const addRoles = async () => {
 
   for (const role of roles) {
     try {
-      await RoleService.createRole(role);
+      await roleRepository.createRole(role);
     } catch (err) {
       console.log(`${ICONS.info} Role '${role.name}' already exists.`);
     }
@@ -114,20 +117,28 @@ const addRoles = async () => {
 
 // Tạo các User
 const addUsers = async () => {
+  const roleRepository = new RoleRepository();
+  const userRepository = new UserRepository();
+
   const add = await askQuestion("Do you want to add Users?");
   if (!add) {
     console.log(`${ICONS.info} Skipped adding Users.`);
     return;
   }
 
-  const roles = await RoleService.findAllRoles();
+  const roles = await roleRepository.findAllRoles();
   const roleMap = Object.fromEntries(roles.map((role) => [role.name, role]));
 
   const users = [
     {
+      _id: new Types.ObjectId(),
       username: "admin_user",
       password: "123456",
+      name: "name1",
       roles: [roleMap["Admin"]],
+      status: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
       detail_user: {
         user_code: "ADMIN001",
         name: "Admin User",
@@ -137,9 +148,14 @@ const addUsers = async () => {
       },
     },
     {
+      _id: new Types.ObjectId(),
       username: "doctor_user",
       password: "123456",
+      name: "name2",
       roles: [roleMap["Bác Sỹ CNXN"]],
+      status: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
       detail_user: {
         user_code: "DOCTOR001",
         name: "Doctor User",
@@ -149,9 +165,14 @@ const addUsers = async () => {
       },
     },
     {
+      _id: new Types.ObjectId(),
       username: "ktv_sample",
       password: "123456",
+      name: "name3",
       roles: [roleMap["KTV lấy mẫu"]],
+      status: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
       detail_user: {
         user_code: "SAMPLE001",
         name: "Sample Technician",
@@ -161,9 +182,14 @@ const addUsers = async () => {
       },
     },
     {
+      _id: new Types.ObjectId(),
       username: "ktv_test",
       password: "123456",
+      name: "name4",
       roles: [roleMap["KTV xét nghiệm"]],
+      status: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
       detail_user: {
         user_code: "TEST001",
         name: "Testing Technician",
@@ -176,7 +202,9 @@ const addUsers = async () => {
 
   for (const user of users) {
     try {
-      const existingUser = await UserService.findUserByName(user.username);
+      const existingUser = await userRepository.findUserByUsername(
+        user.username
+      );
       if (existingUser) {
         console.log(`${ICONS.info} User '${user.username}' already exists.`);
         continue;
@@ -186,7 +214,7 @@ const addUsers = async () => {
       const hashedPassword = await bcrypt.hash(user.password, salt);
       user.password = hashedPassword;
 
-      await UserService.createUser(user);
+      await userRepository.createUser(user);
       console.log(
         `${ICONS.success} User '${user.username}' added successfully.`
       );

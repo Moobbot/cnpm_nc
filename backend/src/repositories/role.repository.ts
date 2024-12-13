@@ -5,11 +5,19 @@ import { count } from "console";
 import { BaseRepository } from "./base.repository";
 
 export class RoleRepository extends BaseRepository<IRole> {
-    constructor() {
-        super(RoleModel);
-    }
+  constructor() {
+    super(RoleModel);
+  }
 
-    findRoleByName(name: string) {
-        return RoleModel.findOne({ name });
-    }
+  findRoleByName(name: string) {
+    return RoleModel.findOne({ name });
+  }
+
+  createRole(data: any) {
+    return this.create(data);
+  }
+
+  findAllRoles() {
+    return RoleModel.find();
+  }
 }

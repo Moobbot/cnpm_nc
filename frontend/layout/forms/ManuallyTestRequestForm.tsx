@@ -2,13 +2,20 @@ import { Calendar } from 'primereact/calendar';
 import { Dropdown } from 'primereact/dropdown';
 import { InputText } from 'primereact/inputtext';
 import { Button } from 'primereact/button';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { z } from 'zod';
 import SaveButton from '../components/SaveButton';
 import RBAC from '@/app/api/RBAC';
 
-const ManuallyTestRequestForm = () => {
+const ManuallyTestRequestForm = ({ initialBarcode }: { initialBarcode?: string }) => {
+    const [barcode, setBarcode] = useState(initialBarcode || '');
 
+    useEffect(() => {
+        if (initialBarcode) {
+            setBarcode(initialBarcode);
+        }
+    }, [initialBarcode]);
+    
     const permissions = RBAC();
 
     const formSchema = z.object({
@@ -96,6 +103,10 @@ const ManuallyTestRequestForm = () => {
 
     return (
         <div className="p-fluid" style={{ position: 'relative' }}>
+            <div className="field col-12">
+                <label htmlFor="barcode">Mã vạch:</label>
+                <InputText id="barcode" value={barcode} readOnly />
+            </div>
             <div className="formgrid grid">
                 {/* Thông tin bệnh nhân */}
                 <div className="col-12 md:col-6">

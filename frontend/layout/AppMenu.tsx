@@ -22,7 +22,7 @@ const AppMenu = () => {
                 { label: 'Dashboard', icon: 'pi pi-fw pi-home', to: '/' },
                 { label: 'Login', icon: 'pi pi-fw pi-sign-in', to: '/auth/login' },
                 { label: 'Quản lý thiết bị', icon: 'pi pi-fw pi-cog', to: '/quan-ly-thiet-bi' },
-                { label: 'Tiếp nhận yêu cầu', icon: 'pi pi-fw pi-inbox', to: '/tiep-nhan-yeu-cau' },
+                { label: 'Tiếp nhận yêu cầu', icon: 'pi pi-fw pi-inbox', to: '/request' },
                 ...(permissions.includes(Permissions.LIST_ALL_PERMISSIONS)
                     ? [
                           { label: 'Quản lý hàng đợi', icon: 'pi pi-fw pi-list', to: '/quan-ly-hang-doi' },
